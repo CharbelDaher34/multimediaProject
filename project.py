@@ -14,9 +14,6 @@ Original file is located at
 * Mahmoud Shelil 		201900967
 """
 
-!git clone https://github.com/CharbelDaher34/multimediaProject
-
-pip install opencv-python
 
 from PIL import Image
 from IPython.display import Image as Img
@@ -36,18 +33,17 @@ from decimal import getcontext
 import threading
 import cv2
 
-from google.colab.patches import cv2_imshow
-    COLAB = True
+COLAB = False
 
-if 'google.colab' in str(get_ipython()):
-    print('Running on CoLab')
-    from google.colab import drive
-    drive.mount('/content/drive')
-    from google.colab.patches import cv2_imshow
-    COLAB = True
-else:
-    print('Not running on CoLab')
-    COLAB = False
+# if 'google.colab' in str(get_ipython()):
+#     print('Running on CoLab')
+#     from google.colab import drive
+#     drive.mount('/content/drive')
+#     from google.colab.patches import cv2_imshow
+#     COLAB = True
+# else:
+#     print('Not running on CoLab')
+#     COLAB = False
 
 """#### Utility functions for image processing
 ##### The following block contains functions for :
@@ -58,318 +54,378 @@ else:
 * Run length encode and decode
 """
 
-def devide_image(img ) :
-    ''' Takes an image and devides it to n*m sub images... n and m are the nearest integer scale of 8 x 8
-    returns the sub images (as an array), n and and m'''
+
+def devide_image(img):
+    """Takes an image and devides it to n*m sub images... n and m are the nearest integer scale of 8 x 8
+    returns the sub images (as an array), n and and m"""
     img_array = asarray(img)
     if len(img_array.shape) > 2:
-        img_array = img_array[:,:,0]
-    n,m = img_array.shape
-    n ,m=  int(n/8) ,int(m/8)
+        img_array = img_array[:, :, 0]
+    n, m = img_array.shape
+    n, m = int(n / 8), int(m / 8)
     res_devided = []
-    for i in range(n) :
-        for j in range(m) :
-            res_devided.append(img_array[i*8:(i+1)*8,j*8:(j+1)*8])
-    return res_devided ,n ,m
+    for i in range(n):
+        for j in range(m):
+            res_devided.append(img_array[i * 8 : (i + 1) * 8, j * 8 : (j + 1) * 8])
+    return res_devided, n, m
 
-def combine_image(blocks ,n,m , limit   = True) :
-    ''' Takes an array of 8x8 blocks to be combined to a nx8,mx8 image'''
-    final_image = zeros((n*8,m*8))
-    idx =0
-    for i in range(n) :
-        for j in range(m) :
-            final_image[i*8:(i+1)*8,j*8:(j+1)*8] = blocks[idx]
-            idx +=1
-    if limit :
+
+def combine_image(blocks, n, m, limit=True):
+    """Takes an array of 8x8 blocks to be combined to a nx8,mx8 image"""
+    final_image = zeros((n * 8, m * 8))
+    idx = 0
+    for i in range(n):
+        for j in range(m):
+            final_image[i * 8 : (i + 1) * 8, j * 8 : (j + 1) * 8] = blocks[idx]
+            idx += 1
+    if limit:
         return final_image.astype(uint8)
     return final_image.astype(int)
 
     ########################
-def create_basis_mat() :
-    ''' Creating a matrix containing another basis matrices for all u and v to be used in block DCT'''
-    basis_mat = np.empty(shape=(8,8) ,dtype= object)
-    for u in range(8) :
-        for v in range(8) :
+
+
+def create_basis_mat():
+    """Creating a matrix containing another basis matrices for all u and v to be used in block DCT"""
+    basis_mat = np.empty(shape=(8, 8), dtype=object)
+    for u in range(8):
+        for v in range(8):
             # for x in range(8) :
             #     for y in range(8) :
             #         basis[x,y] = (cos((1/16)* (2*x +1)*u*pi) *  cos((1/16)* (2*y +1)*v*pi))
-            ''' The next line is similar to the previous two for loops'''
-            basis = np.fromfunction(lambda x, y: (cos((1/16)* (2*x +1)*u*pi) *  cos((1/16)* (2*y +1)*v*pi)), (8, 8), dtype=float)
-            basis_mat[u,v] = basis
+            """The next line is similar to the previous two for loops"""
+            basis = np.fromfunction(
+                lambda x, y: (
+                    cos((1 / 16) * (2 * x + 1) * u * pi)
+                    * cos((1 / 16) * (2 * y + 1) * v * pi)
+                ),
+                (8, 8),
+                dtype=float,
+            )
+            basis_mat[u, v] = basis
     return basis_mat
 
-def dct8_image(image_part : np.array ,basis_mat :np.array = None) :
-    ''' 8x8 image array --> 8x8 array of the same image after DCT
-    .. the function can be provided with the basis matrix for faster execution '''
-    basis = np.zeros(shape=(8,8))
-    res = np.zeros(shape=(8,8))
-    for u in range(8) :
-        for v in range(8) :
-            if basis_mat is not None:   # if basis matrix is provided , use it .. else create basis for each u ,v
-                basis = basis_mat[u,v]
-            else :
-                basis = np.fromfunction(lambda x, y: (cos((1/16)* (2*x +1)*u*pi) *  cos((1/16)* (2*y +1)*v*pi)), (8, 8), dtype=float)
 
-            res[u,v] = np.sum (image_part*basis)   # sum of each element of basis multiplied to the corresponding element in image
+def dct8_image(image_part: np.array, basis_mat: np.array = None):
+    """8x8 image array --> 8x8 array of the same image after DCT
+    .. the function can be provided with the basis matrix for faster execution"""
+    basis = np.zeros(shape=(8, 8))
+    res = np.zeros(shape=(8, 8))
+    for u in range(8):
+        for v in range(8):
+            if (
+                basis_mat is not None
+            ):  # if basis matrix is provided , use it .. else create basis for each u ,v
+                basis = basis_mat[u, v]
+            else:
+                basis = np.fromfunction(
+                    lambda x, y: (
+                        cos((1 / 16) * (2 * x + 1) * u * pi)
+                        * cos((1 / 16) * (2 * y + 1) * v * pi)
+                    ),
+                    (8, 8),
+                    dtype=float,
+                )
 
-    res[0,:] =  res[0,:]/2
-    res[:,0] =  res[:,0]/2
-    res[:,:] =  res[:,:]/16
+            res[u, v] = np.sum(
+                image_part * basis
+            )  # sum of each element of basis multiplied to the corresponding element in image
+
+    res[0, :] = res[0, :] / 2
+    res[:, 0] = res[:, 0] / 2
+    res[:, :] = res[:, :] / 16
     return res
 
-def idct8_image(image_part : np.array ,basis_mat :np.array = None , limit = True) :
-    ''' Similar to DCT ,8x8 DCT image array --> 8x8 array of the original image '''
-    basis = np.zeros(shape=(8,8))
-    res = np.zeros(shape=(8,8))
-    for u in range(8) :
-        for v in range(8) :
-            if basis_mat is not None: # if basis matrix is provided , use it .. else create basis for each u ,v
-                basis = basis_mat[u,v]
-            else :
-                basis = np.fromfunction(lambda x, y: (cos((1/16)* (2*x +1)*u*pi) *  cos((1/16)* (2*y +1)*v*pi)), (8, 8), dtype=float)
-            res += image_part[u,v] * basis
-    if limit :
-        res = np.clip(res ,0,255)
-        return res.astype(uint8) ;
-    return res.astype(int) ;
 
-def create_q_table( q_type = 'luminance',q_factor : int = 50) :
-    if q_type == 'luminance':
-        qm = np.array([
-                [16, 11 ,10 ,16, 24 ,40 ,51  ,61 ] ,
-                [12 ,12 ,14, 19, 26, 58, 60  ,55 ] ,
-                [14, 13 ,16 ,24 ,40, 57, 69  ,56]  ,
-                [14, 17, 22, 29, 51, 87, 80  ,62 ] ,
-                [18, 22, 37 ,56, 68 ,109,103 ,77 ] ,
-                [24 ,35, 55 ,64, 81, 104,113 ,92 ] ,
-                [49 ,64 ,78 ,87, 103,121,120 ,101] ,
-                [72 ,92 ,95 ,98, 112,100,103 ,99]
-                ])
-    elif q_type == 'chrominance' :
-        qm = np.array([
-                [17,  18,  24,  47,  99,  99,  99,  99],
-                [18,  21,  26,  66,  99,  99,  99,  99],
-                [24,  26,  56,  99,  99,  99,  99,  99],
-                [47,  66,  99,  99,  99,  99,  99,  99],
-                [99,  99,  99,  99,  99,  99,  99,  99],
-                [99,  99,  99,  99,  99,  99,  99,  99],
-                [99,  99,  99,  99,  99,  99,  99,  99],
-                [99,  99,  99,  99,  99,  99,  99,  99]
-                ])
-    s = 5000/q_factor if (q_factor < 50) else 200-q_factor*2
-    qm_f = np.floor((qm*s - 50)/100)
+def idct8_image(image_part: np.array, basis_mat: np.array = None, limit=True):
+    """Similar to DCT ,8x8 DCT image array --> 8x8 array of the original image"""
+    basis = np.zeros(shape=(8, 8))
+    res = np.zeros(shape=(8, 8))
+    for u in range(8):
+        for v in range(8):
+            if (
+                basis_mat is not None
+            ):  # if basis matrix is provided , use it .. else create basis for each u ,v
+                basis = basis_mat[u, v]
+            else:
+                basis = np.fromfunction(
+                    lambda x, y: (
+                        cos((1 / 16) * (2 * x + 1) * u * pi)
+                        * cos((1 / 16) * (2 * y + 1) * v * pi)
+                    ),
+                    (8, 8),
+                    dtype=float,
+                )
+            res += image_part[u, v] * basis
+    if limit:
+        res = np.clip(res, 0, 255)
+        return res.astype(uint8)
+    return res.astype(int)
+
+
+def create_q_table(q_type="luminance", q_factor: int = 50):
+    if q_type == "luminance":
+        qm = np.array(
+            [
+                [16, 11, 10, 16, 24, 40, 51, 61],
+                [12, 12, 14, 19, 26, 58, 60, 55],
+                [14, 13, 16, 24, 40, 57, 69, 56],
+                [14, 17, 22, 29, 51, 87, 80, 62],
+                [18, 22, 37, 56, 68, 109, 103, 77],
+                [24, 35, 55, 64, 81, 104, 113, 92],
+                [49, 64, 78, 87, 103, 121, 120, 101],
+                [72, 92, 95, 98, 112, 100, 103, 99],
+            ]
+        )
+    elif q_type == "chrominance":
+        qm = np.array(
+            [
+                [17, 18, 24, 47, 99, 99, 99, 99],
+                [18, 21, 26, 66, 99, 99, 99, 99],
+                [24, 26, 56, 99, 99, 99, 99, 99],
+                [47, 66, 99, 99, 99, 99, 99, 99],
+                [99, 99, 99, 99, 99, 99, 99, 99],
+                [99, 99, 99, 99, 99, 99, 99, 99],
+                [99, 99, 99, 99, 99, 99, 99, 99],
+                [99, 99, 99, 99, 99, 99, 99, 99],
+            ]
+        )
+    s = 5000 / q_factor if (q_factor < 50) else 200 - q_factor * 2
+    qm_f = np.floor((qm * s - 50) / 100)
     return qm_f
 
-
     ########################
-def quantize(im : np.array , qm_f) :
-    res = (np.round(im/qm_f )).astype(np.int32)
+
+
+def quantize(im: np.array, qm_f):
+    res = (np.round(im / qm_f)).astype(np.int32)
     return res
 
-def dequantize(im : np.array ,qm_f) :
-    res = (np.round(im.astype(float)*qm_f.astype(float) )).astype(np.int32)
+
+def dequantize(im: np.array, qm_f):
+    res = (np.round(im.astype(float) * qm_f.astype(float))).astype(np.int32)
     return res
+
+
 #####################
 
-def to_zigzag(im : np.array) :
-    ''' Input 8x8 matrix --> output 64 array with zigzag pattern '''
-    res = np.zeros(64 , dtype = np.int32)
+
+def to_zigzag(im: np.array):
+    """Input 8x8 matrix --> output 64 array with zigzag pattern"""
+    res = np.zeros(64, dtype=np.int32)
     x = 0
-    y =0
-    dr = 1;
-    for i in range(32) :
-        res[i] = im[y,x]
+    y = 0
+    dr = 1
+    for i in range(32):
+        res[i] = im[y, x]
         x += dr
         y -= dr
-        if y == -1 :
+        if y == -1:
             y = 0
             dr = -1
-        if x == -1 :
+        if x == -1:
             x = 0
             dr = 1
 
     x = 7
     y = 7
     dr = 1
-    for i in range (32) :
-        res[-(i+1)] = im[y,x]
+    for i in range(32):
+        res[-(i + 1)] = im[y, x]
         x -= dr
         y += dr
-        if y == 8 :
+        if y == 8:
             y = 7
             dr = -1
-        if x == 8 :
+        if x == 8:
             x = 7
             dr = 1
 
-    return res;
+    return res
 
-def from_zigzag(inpt : np.array)  :
-    ''' Input  64 array with zigzag pattern --> output 8x8 matrix '''
-    res = np.zeros((8,8) , dtype = np.int32)
+
+def from_zigzag(inpt: np.array):
+    """Input  64 array with zigzag pattern --> output 8x8 matrix"""
+    res = np.zeros((8, 8), dtype=np.int32)
     x = 0
-    y =0
-    dr = 1;
-    for i in range(32) :
-        res[y,x] = inpt[i]
+    y = 0
+    dr = 1
+    for i in range(32):
+        res[y, x] = inpt[i]
         x += dr
         y -= dr
-        if y == -1 :
+        if y == -1:
             y = 0
             dr = -1
-        if x == -1 :
+        if x == -1:
             x = 0
             dr = 1
 
     x = 7
     y = 7
     dr = 1
-    for i in range (32) :
-        res[y,x] = inpt[-(i+1)]
+    for i in range(32):
+        res[y, x] = inpt[-(i + 1)]
         x -= dr
         y += dr
-        if y == 8 :
+        if y == 8:
             y = 7
             dr = -1
-        if x == 8 :
+        if x == 8:
             x = 7
             dr = 1
 
-    return res;
+    return res
+
+
 ###################
-def run_len_encode(inpt : np.array) :
-    res = np.zeros(2*len(inpt) , dtype = np.int32)
-    res_idx = 0;
-    idx =0
-    while idx < len(inpt) :
+def run_len_encode(inpt: np.array):
+    res = np.zeros(2 * len(inpt), dtype=np.int32)
+    res_idx = 0
+    idx = 0
+    while idx < len(inpt):
         res[res_idx] = inpt[idx]
         res_idx += 1
-        if inpt[idx] == 0 :
+        if inpt[idx] == 0:
             cnt = 1
-            idx +=1
-            while idx < len(inpt)  and inpt[idx] ==0 :
+            idx += 1
+            while idx < len(inpt) and inpt[idx] == 0:
                 cnt += 1
-                idx +=1
+                idx += 1
             res[res_idx] = cnt
             res_idx += 1
-        else :
-            idx +=1
+        else:
+            idx += 1
     return res[0:res_idx]
 
-def run_len_decode(inpt : np.array) :
+
+def run_len_decode(inpt: np.array):
     res = []
-    i =0
-    while i < len(inpt) :
+    i = 0
+    while i < len(inpt):
         res.append(inpt[i])
-        if inpt[i] == 0 :
-            i +=1
-            for j in range(inpt[i] -1)  :
+        if inpt[i] == 0:
+            i += 1
+            for j in range(inpt[i] - 1):
                 res.append(0)
-        i+=1
-    return   np.array(res)
+        i += 1
+    return np.array(res)
+
 
 """#### Huffman Encode/ Decode functions
 ##### The following block contains an implementation of a binary tree node , Frequency per symbol calculation function and  huffman encode/decode functions
 """
 
-class node :
-    """ A class we will use to represent a symbol node in the tree """
-    left  = None
+
+class node:
+    """A class we will use to represent a symbol node in the tree"""
+
+    left = None
     right = None
     freq = None
     symbol = None
 
-    def __init__(self ,freq = None, symbol = None, left = None , right = None ) -> None:
+    def __init__(self, freq=None, symbol=None, left=None, right=None) -> None:
         self.left = left
         self.right = right
         self.symbol = symbol
         self.freq = freq
 
     def __lt__(self, nxt):
-        """ Ovveriding the "Less than" class method so that the nodes can be compared by frequency and can be used easily in pq """
+        """Ovveriding the "Less than" class method so that the nodes can be compared by frequency and can be used easily in pq"""
         return self.freq < nxt.freq
 
-def huffman_code(freqs : dict) -> dict :
-    """ Function the takes a dict of frequencies and returns  a dict of corrosponding coding """
+
+def huffman_code(freqs: dict) -> dict:
+    """Function the takes a dict of frequencies and returns  a dict of corrosponding coding"""
     result_dict = freqs.copy()
     q = PriorityQueue()
-    for symbol , freq in freqs.items() :
-        q.put(node(symbol=symbol , freq= freq))
+    for symbol, freq in freqs.items():
+        q.put(node(symbol=symbol, freq=freq))
     node_right = None
 
-    while  q.qsize() > 1 :    # q has at least 2 nodes left
+    while q.qsize() > 1:  # q has at least 2 nodes left
         node_right = q.get()
         node_left = q.get()
-        parent = node(freq= node_right.freq + node_left.freq , symbol= None , left= node_left , right= node_right )
+        parent = node(
+            freq=node_right.freq + node_left.freq,
+            symbol=None,
+            left=node_left,
+            right=node_right,
+        )
         q.put(parent)
         node_right = parent
 
-
     # traverse the tree to the coding , left --> 1 , right --> 0 , we will use recursion
-    def traverse_node(nd :node ,init_code :str = '') :
-        if nd.left :
-            traverse_node(nd.left ,init_code+ '1')
-        if nd.right :
-            traverse_node(nd.right ,init_code+ '0')
-        if not ( nd.left or nd.right) :  # node for symbol
+    def traverse_node(nd: node, init_code: str = ""):
+        if nd.left:
+            traverse_node(nd.left, init_code + "1")
+        if nd.right:
+            traverse_node(nd.right, init_code + "0")
+        if not (nd.left or nd.right):  # node for symbol
             result_dict[nd.symbol] = init_code
-
 
     traverse_node(node_right)
     return result_dict
 
-def calculate_probs(text ) :
-    """ returns a dictionary of characters in the input text and their probabilities """
+
+def calculate_probs(text):
+    """returns a dictionary of characters in the input text and their probabilities"""
     data_set = set(text)
     res_dict = dict()
-    for i in data_set :
+    for i in data_set:
         res_dict[i] = 0
 
-    for i in text :
-        res_dict[i] +=1
+    for i in text:
+        res_dict[i] += 1
 
     total = len(text)
-    for key,val in res_dict.items():
-        res_dict[key] = val/total
+    for key, val in res_dict.items():
+        res_dict[key] = val / total
 
     return res_dict
 
-def huff_encode_stream(text  , code_table : dict) :
-    """ returns a string corresponding the input text with each character mapped to a value in the code table   """
-    res = ''
-    for s in text :
-        if s  in code_table.keys() :
+
+def huff_encode_stream(text, code_table: dict):
+    """returns a string corresponding the input text with each character mapped to a value in the code table"""
+    res = ""
+    for s in text:
+        if s in code_table.keys():
             res += str(code_table[s])
     return res
 
-def huff_decode_stream(text  , code_table : dict) :
-    ''' Decode string/array of '1' and '0' from a code table , uses a binary tree to decode '''
+
+def huff_decode_stream(text, code_table: dict):
+    """Decode string/array of '1' and '0' from a code table , uses a binary tree to decode"""
     # construct tree for code table
     parent = node()
-    for key ,val in code_table.items() :
+    for key, val in code_table.items():
         chld = parent
-        for bt in val :
-            if bt == '1' :
-                if not chld.left: chld.left = node()
+        for bt in val:
+            if bt == "1":
+                if not chld.left:
+                    chld.left = node()
                 chld = chld.left
-            else :
-                if not chld.right: chld.right = node()
+            else:
+                if not chld.right:
+                    chld.right = node()
                 chld = chld.right
         chld.symbol = key
-    res =[]
+    res = []
 
     # decode input stream using the tree
-    chld:node = parent
-    for ltr in  text :
-        if ltr =='1' :
+    chld: node = parent
+    for ltr in text:
+        if ltr == "1":
             chld = chld.left
-        else :
+        else:
             chld = chld.right
-        if not chld.symbol == None :
+        if not chld.symbol == None:
 
             res.append(chld.symbol)
             chld = parent
     return np.array(res)
+
 
 """#### Arithmetic coding functions
 ##### The following block contains functions for Arithmetic encoding and decoding
@@ -377,151 +433,191 @@ def huff_decode_stream(text  , code_table : dict) :
 * Any block length greater than 10 MAY cause cause precision problems that will result in a crash
 """
 
-getcontext().prec  = 500 # 500 precision points
+getcontext().prec = 500  # 500 precision points
 
-def dec2bin(num ,limit) :    # decimal to binary string with limit
-    res = ''
-    for _ in range(limit) :
-        num *=2;
-        if int(num) ==0 :
-            res += '0'
-        else :
-            res += '1'
+
+def dec2bin(num, limit):  # decimal to binary string with limit
+    res = ""
+    for _ in range(limit):
+        num *= 2
+        if int(num) == 0:
+            res += "0"
+        else:
+            res += "1"
             num -= 1
 
     return res
 
-def get_symbol_range(symbol_prob : dict , code_word   )   :
-    """  A functtion to get the low and high limits from a word whose symbols are contained within the dictionry
-    of probabilities    """
+
+def get_symbol_range(symbol_prob: dict, code_word):
+    """A functtion to get the low and high limits from a word whose symbols are contained within the dictionry
+    of probabilities"""
 
     smbl = code_word[0]
     low = Decimal(0)
     high = Decimal(sum(symbol_prob.values()))
-    for smbl in code_word :
-        hght = Decimal(high- low)
-        for key ,val in symbol_prob.items() :
+    for smbl in code_word:
+        hght = Decimal(high - low)
+        for key, val in symbol_prob.items():
             val = Decimal(val)
-            if key == smbl :
-                high = low   +hght* val
-                break;
-            low += hght* val
+            if key == smbl:
+                high = low + hght * val
+                break
+            low += hght * val
 
-    return low , high
-
-
-def encode_with_range(low  , high   ) :
-    """ A function to represent the limits into a binary code (as string)
-    """
-    num = (low + high) /2
-    limit = int(np.ceil(np.log2(1/float(high - low)) +1))
-
-    return dec2bin(num ,limit)
+    return low, high
 
 
-def decode_bin( symbol_prob : dict,  bin_word : str , n : int)  :
-    ''' Decode a binary string to word of n symbols
-    '''
+def encode_with_range(low, high):
+    """A function to represent the limits into a binary code (as string)"""
+    num = (low + high) / 2
+    limit = int(np.ceil(np.log2(1 / float(high - low)) + 1))
+
+    return dec2bin(num, limit)
+
+
+def decode_bin(symbol_prob: dict, bin_word: str, n: int):
+    """Decode a binary string to word of n symbols"""
     point = Decimal(0)
-    for i , val in enumerate(bin_word) :
-        point += Decimal(int(val)) * Decimal(2**-(i+1))
+    for i, val in enumerate(bin_word):
+        point += Decimal(int(val)) * Decimal(2 ** -(i + 1))
     low = Decimal(0)
     high = Decimal(sum(symbol_prob.values()))
-    res = np.empty(n , dtype = type(list(symbol_prob.keys())[0]))
+    res = np.empty(n, dtype=type(list(symbol_prob.keys())[0]))
 
-    for i in range(n) :
+    for i in range(n):
         hght = high - low
-        for key ,val in symbol_prob.items() :
+        for key, val in symbol_prob.items():
             val = Decimal(val)
-            if low +hght*val> point :
-                high = low + hght*val
+            if low + hght * val > point:
+                high = low + hght * val
                 res[i] = key
-                break;
-            low += hght* val
+                break
+            low += hght * val
     return res
 
-def enocde_arithmetic(symbol_prob : dict , symbol_seq , step = 10 ) :
-    ''' Wrapper for big code arithmetic encoding , default block size is 10
-    '''
-    code =''
-    lens = np.zeros(int(np.ceil(len(symbol_seq)/step) +1) ,dtype = np.int32)
-    for i in range(int(np.ceil(len(symbol_seq)/step))) :
-        seq = symbol_seq[i*step : (i +1) * step]
-        low , high = get_symbol_range(symbol_prob , seq )
+
+def enocde_arithmetic(symbol_prob: dict, symbol_seq, step=10):
+    """Wrapper for big code arithmetic encoding , default block size is 10"""
+    code = ""
+    lens = np.zeros(int(np.ceil(len(symbol_seq) / step) + 1), dtype=np.int32)
+    for i in range(int(np.ceil(len(symbol_seq) / step))):
+        seq = symbol_seq[i * step : (i + 1) * step]
+        low, high = get_symbol_range(symbol_prob, seq)
         # print(seq)
         # print(low )
         # print(high)
-        res =encode_with_range(low  , high)
+        res = encode_with_range(low, high)
         code += res
         lens[i] = len(res)
 
     lens[-1] = len(symbol_seq)  # last element we will save the original sequence length
-    return   code , lens
+    return code, lens
 
-def decode_arithmetic(symbol_prob : dict , code_seq , lens ,step = 10 ) :
-    ''' Wrapper for big code arithmetic decoding , default block size is 10
-    '''
-    result = np.zeros(step*(len(lens) -1) , dtype = np.int32 )
+
+def decode_arithmetic(symbol_prob: dict, code_seq, lens, step=10):
+    """Wrapper for big code arithmetic decoding , default block size is 10"""
+    result = np.zeros(step * (len(lens) - 1), dtype=np.int32)
     total = lens[-1]
     lens = lens[:-1]
-    idx =0
-    for  i,ln in enumerate(lens)  :
-        #print(ln)
+    idx = 0
+    for i, ln in enumerate(lens):
+        # print(ln)
         seq = code_seq[idx : idx + ln]
         idx = idx + ln
-        result[i* step : (i +1) * step] = decode_bin(symbol_prob ,seq , step)
+        result[i * step : (i + 1) * step] = decode_bin(symbol_prob, seq, step)
 
-    return result[:total];
+    return result[:total]
+
 
 """#### Two wrapper functions for image encoding & decoding
 ##### The next two functions for image decoding / encoding utilize the previously defined functions to work on a whole image with an efficient and organized code (kinda)
 """
 
-def encode_image(img  ,q_type = 'luminance',q_factor = 50  , encode_type ='huff') :
-    ''' takes input image and quantization table type ('luminance'/'chrominance' ) and value for quality factor
-    returns the encoded stream, the image dimensions and the code table '''
-    image_parts ,n,m= devide_image(img)  # Devide image into array of arrays
-    basis_mat = create_basis_mat()    # create the basis for all u,v = 0 :8
 
-    q_table = create_q_table(q_type ,q_factor);
+def encode_image(img, q_type="luminance", q_factor=50, encode_type="huff"):
+    """takes input image and quantization table type ('luminance'/'chrominance' ) and value for quality factor
+    returns the encoded stream, the image dimensions and the code table"""
+    image_parts, n, m = devide_image(img)  # Devide image into array of arrays
+    basis_mat = create_basis_mat()  # create the basis for all u,v = 0 :8
 
-    dct_blocks = np.array([dct8_image(part,basis_mat) for part in image_parts])   # apply DCT on all parts
-    quantized_blocks = np.array([quantize(part ,q_table) for part in dct_blocks])  # Quantize all parts
-    zigzag_parts = np.array([to_zigzag(part) for part in quantized_blocks])   # Apply zigzag (2d --> 1d) for all parts
-    length_coded_parts   =  np.array([ run_len_encode(part) for part in zigzag_parts] ,dtype=object)   # aplly run length encoding on all parts
-    coded_combined = np.concatenate(length_coded_parts) # Compine all parts intp one continuous array
+    q_table = create_q_table(q_type, q_factor)
 
-    if encode_type == 'huff' :
-        encode_table = huffman_code(freqs= calculate_probs(coded_combined))  # get the code table for the frequencies of symbols in the stream
-        encoded_stream = huff_encode_stream(text= coded_combined ,code_table= encode_table)  # Encode the stream
-    elif encode_type == 'arth' :
+    dct_blocks = np.array(
+        [dct8_image(part, basis_mat) for part in image_parts]
+    )  # apply DCT on all parts
+    quantized_blocks = np.array(
+        [quantize(part, q_table) for part in dct_blocks]
+    )  # Quantize all parts
+    zigzag_parts = np.array(
+        [to_zigzag(part) for part in quantized_blocks]
+    )  # Apply zigzag (2d --> 1d) for all parts
+    length_coded_parts = np.array(
+        [run_len_encode(part) for part in zigzag_parts], dtype=object
+    )  # aplly run length encoding on all parts
+    coded_combined = np.concatenate(
+        length_coded_parts
+    )  # Compine all parts intp one continuous array
+
+    if encode_type == "huff":
+        encode_table = huffman_code(
+            freqs=calculate_probs(coded_combined)
+        )  # get the code table for the frequencies of symbols in the stream
+        encoded_stream = huff_encode_stream(
+            text=coded_combined, code_table=encode_table
+        )  # Encode the stream
+    elif encode_type == "arth":
         probs_dict = calculate_probs(coded_combined)
-        encoded_stream , lens = enocde_arithmetic(probs_dict  , coded_combined )
-        encode_table = (probs_dict , lens)
+        encoded_stream, lens = enocde_arithmetic(probs_dict, coded_combined)
+        encode_table = (probs_dict, lens)
+
+    return encoded_stream, n, m, encode_table  # return results
 
 
-    return encoded_stream ,n ,m, encode_table   # return results
+def decode_image(
+    encoded_stream,
+    n,
+    m,
+    encode_table,
+    q_type="luminance",
+    q_factor=50,
+    encode_type="huff",
+    limited=True,
+):
 
-def decode_image(encoded_stream ,n,m , encode_table ,q_type = 'luminance',q_factor = 50  , encode_type ='huff' ,limited = True) :
+    if encode_type == "huff":
+        decoded_stream = huff_decode_stream(
+            encoded_stream, encode_table
+        )  # Decde the input stream
+    elif encode_type == "arth":
+        probs_dict, lens = encode_table
+        decoded_stream = decode_arithmetic(probs_dict, encoded_stream, lens)
 
+    expanded_full_length = run_len_decode(decoded_stream)  # Expand zeros in the input
+    segmented_blocks_1d = np.array(
+        [
+            expanded_full_length[i * 64 : (i + 1) * 64]
+            for i in range(int(len(expanded_full_length) / 64))
+        ]
+    )  # Devide the input to n*m/64 64-element arrays
+    after_zigzag_parts_2d = np.array(
+        [from_zigzag(seg) for seg in segmented_blocks_1d]
+    )  # Apply zigzag (1d --> 2d) for all parts
 
-    if encode_type == 'huff' :
-        decoded_stream = huff_decode_stream(encoded_stream,encode_table)  # Decde the input stream
-    elif encode_type == 'arth' :
-        probs_dict , lens = encode_table
-        decoded_stream = decode_arithmetic(probs_dict, encoded_stream , lens  )
+    q_table = create_q_table(q_type, q_factor)
 
-    expanded_full_length = run_len_decode(decoded_stream)   # Expand zeros in the input
-    segmented_blocks_1d = np.array([expanded_full_length[i*64 :(i+1)*64] for i in range(int(len(expanded_full_length)/64))])   # Devide the input to n*m/64 64-element arrays
-    after_zigzag_parts_2d = np.array([from_zigzag(seg) for seg in segmented_blocks_1d ])   # Apply zigzag (1d --> 2d) for all parts
-
-    q_table = create_q_table(q_type ,q_factor);
-
-    dequantized_parts = np.array([dequantize(part,q_table) for part in after_zigzag_parts_2d])  # Dequantize using qiven parameters
-    basis_mat = create_basis_mat()    # create the basis for all u,v = 0 :8
-    idct_blocks = np.array([idct8_image(part,basis_mat , limit = limited) for part in dequantized_parts] )  # apply IDCT on all parts
-    final_image = combine_image(blocks=idct_blocks , n= n ,m= m , limit= limited)    # Compine all parts to one single image
+    dequantized_parts = np.array(
+        [dequantize(part, q_table) for part in after_zigzag_parts_2d]
+    )  # Dequantize using qiven parameters
+    basis_mat = create_basis_mat()  # create the basis for all u,v = 0 :8
+    idct_blocks = np.array(
+        [idct8_image(part, basis_mat, limit=limited) for part in dequantized_parts]
+    )  # apply IDCT on all parts
+    final_image = combine_image(
+        blocks=idct_blocks, n=n, m=m, limit=limited
+    )  # Compine all parts to one single image
     return final_image  # return full image
+
 
 """# Lossless"""
 
@@ -529,23 +625,24 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 
+
 def encode_image_lossless(img):
     """Lossless image encoding using delta encoding and Huffman coding"""
     # Convert image to numpy array
     img_array = np.array(img)
     if len(img_array.shape) > 2:
-        img_array = img_array[:,:,0]  # Convert to grayscale if needed
+        img_array = img_array[:, :, 0]  # Convert to grayscale if needed
 
     # Store dimensions
     height, width = img_array.shape
 
     # Store first column for reconstruction
-    first_column = img_array[:,0].copy()
+    first_column = img_array[:, 0].copy()
 
     # Delta encoding (difference between adjacent pixels)
     delta_encoded = np.zeros_like(img_array)
-    delta_encoded[:,0] = img_array[:,0]
-    delta_encoded[:,1:] = img_array[:,1:] - img_array[:,:-1]
+    delta_encoded[:, 0] = img_array[:, 0]
+    delta_encoded[:, 1:] = img_array[:, 1:] - img_array[:, :-1]
 
     # Flatten the delta encoded array
     flattened = delta_encoded.flatten()
@@ -555,36 +652,38 @@ def encode_image_lossless(img):
     encoded_stream = huff_encode_stream(flattened, huffman_table)
 
     return {
-        'stream': encoded_stream,
-        'height': height,
-        'width': width,
-        'huffman_table': huffman_table,
-        'first_column': first_column
+        "stream": encoded_stream,
+        "height": height,
+        "width": width,
+        "huffman_table": huffman_table,
+        "first_column": first_column,
     }
+
 
 def decode_image_lossless(encoded_data):
     """Lossless image decoding"""
     # Extract data from encoded dictionary
-    height = encoded_data['height']
-    width = encoded_data['width']
-    huffman_table = encoded_data['huffman_table']
-    first_column = encoded_data['first_column']
+    height = encoded_data["height"]
+    width = encoded_data["width"]
+    huffman_table = encoded_data["huffman_table"]
+    first_column = encoded_data["first_column"]
 
     # Huffman decode
-    decoded_data = huff_decode_stream(encoded_data['stream'], huffman_table)
+    decoded_data = huff_decode_stream(encoded_data["stream"], huffman_table)
 
     # Reshape to original dimensions
     delta_decoded = decoded_data.reshape(height, width)
 
     # Reconstruct original image from deltas
     reconstructed = np.zeros_like(delta_decoded)
-    reconstructed[:,0] = delta_decoded[:,0]  # First column remains unchanged
+    reconstructed[:, 0] = delta_decoded[:, 0]  # First column remains unchanged
 
     # Cumulative sum along rows to recover original values
     for i in range(1, width):
-        reconstructed[:,i] = reconstructed[:,i-1] + delta_decoded[:,i]
+        reconstructed[:, i] = reconstructed[:, i - 1] + delta_decoded[:, i]
 
     return reconstructed
+
 
 # from PIL import Image
 # import numpy as np
@@ -660,89 +759,111 @@ def decode_image_lossless(encoded_data):
 * For each image , a matrix of vectors is generated for each block in the image
 """
 
-def get_motion_mat(ref_frame : np.array , next_frame : np.array) :
-    ''' Returns a matrix of vectors for each 8x8 block in the image
-    '''
-    n,m = ref_frame.shape
-    n ,m=  int(n/8) ,int(m/8)
-    motion_mat = np.empty(dtype=object ,shape = (n ,m))
-    for i in range(n) :
-        for j in range(m) :
-            min_err =norm(ref_frame[i*8 : (i +1) * 8 ,j*8 : (j +1) * 8 ] -
-            next_frame[i*8 : (i +1) * 8 ,j*8 : (j +1) * 8 ])
-            motion_mat[i,j] = (0,0)       # no motion
-            if i > 0 :
-                err = norm(ref_frame[(i-1)*8 : (i ) * 8 ,j*8 : (j +1) * 8 ] -
-                next_frame[i*8 : (i +1) * 8 ,j*8 : (j +1) * 8 ]) # up block
-                if err < min_err :
-                    min_err = err
-                    motion_mat[i,j] = (-1,0)  # up
 
-            if i > 0 and j >0 :
-                err = norm(ref_frame[(i-1)*8 : (i ) * 8 ,(j-1)*8 : (j ) * 8 ] -
-                next_frame[i*8 : (i +1) * 8 ,j*8 : (j +1) * 8 ]) # up left block
-                if err < min_err :
+def get_motion_mat(ref_frame: np.array, next_frame: np.array):
+    """Returns a matrix of vectors for each 8x8 block in the image"""
+    n, m = ref_frame.shape
+    n, m = int(n / 8), int(m / 8)
+    motion_mat = np.empty(dtype=object, shape=(n, m))
+    for i in range(n):
+        for j in range(m):
+            min_err = norm(
+                ref_frame[i * 8 : (i + 1) * 8, j * 8 : (j + 1) * 8]
+                - next_frame[i * 8 : (i + 1) * 8, j * 8 : (j + 1) * 8]
+            )
+            motion_mat[i, j] = (0, 0)  # no motion
+            if i > 0:
+                err = norm(
+                    ref_frame[(i - 1) * 8 : (i) * 8, j * 8 : (j + 1) * 8]
+                    - next_frame[i * 8 : (i + 1) * 8, j * 8 : (j + 1) * 8]
+                )  # up block
+                if err < min_err:
                     min_err = err
-                    motion_mat[i,j] = (-1,-1)  # up left
+                    motion_mat[i, j] = (-1, 0)  # up
 
-            if i > 0 and j < m -1 :
-                err = norm(ref_frame[(i-1)*8 : (i ) * 8 ,(j+1)*8 : (j +2 ) * 8 ] -
-                next_frame[i*8 : (i +1) * 8 ,j*8 : (j +1) * 8 ]) # up right block
-                if err < min_err :
+            if i > 0 and j > 0:
+                err = norm(
+                    ref_frame[(i - 1) * 8 : (i) * 8, (j - 1) * 8 : (j) * 8]
+                    - next_frame[i * 8 : (i + 1) * 8, j * 8 : (j + 1) * 8]
+                )  # up left block
+                if err < min_err:
                     min_err = err
-                    motion_mat[i,j] = (-1,1)  # up right
+                    motion_mat[i, j] = (-1, -1)  # up left
 
-            if i < n -1 :
-                err = norm(ref_frame[(i+1)*8 : (i +2 ) * 8 ,(j)*8 : (j +1) * 8 ] -
-                next_frame[i*8 : (i +1) * 8 ,j*8 : (j +1) * 8 ]) # down block
-                if err < min_err :
+            if i > 0 and j < m - 1:
+                err = norm(
+                    ref_frame[(i - 1) * 8 : (i) * 8, (j + 1) * 8 : (j + 2) * 8]
+                    - next_frame[i * 8 : (i + 1) * 8, j * 8 : (j + 1) * 8]
+                )  # up right block
+                if err < min_err:
                     min_err = err
-                    motion_mat[i,j] = (1,0)  # down
+                    motion_mat[i, j] = (-1, 1)  # up right
 
-            if i < n -1 and j >0 :
-                err = norm(ref_frame[(i+1)*8 : (i+2 ) * 8 ,(j-1)*8 : (j ) * 8 ] -
-                next_frame[i*8 : (i +1) * 8 ,j*8 : (j +1) * 8 ]) # down left block
-                if err < min_err :
+            if i < n - 1:
+                err = norm(
+                    ref_frame[(i + 1) * 8 : (i + 2) * 8, (j) * 8 : (j + 1) * 8]
+                    - next_frame[i * 8 : (i + 1) * 8, j * 8 : (j + 1) * 8]
+                )  # down block
+                if err < min_err:
                     min_err = err
-                    motion_mat[i,j] = (1,-1)  # down left
+                    motion_mat[i, j] = (1, 0)  # down
 
-            if i < n -1 and j < m -1 :
-                err = norm(ref_frame[(i+1)*8 : (i +2 ) * 8 ,(j+1)*8 : (j +2 ) * 8 ] -
-                next_frame[i*8 : (i +1) * 8 ,j*8 : (j +1) * 8 ]) # down right block
-                if err < min_err :
+            if i < n - 1 and j > 0:
+                err = norm(
+                    ref_frame[(i + 1) * 8 : (i + 2) * 8, (j - 1) * 8 : (j) * 8]
+                    - next_frame[i * 8 : (i + 1) * 8, j * 8 : (j + 1) * 8]
+                )  # down left block
+                if err < min_err:
                     min_err = err
-                    motion_mat[i,j] = (1,1)  # down right
+                    motion_mat[i, j] = (1, -1)  # down left
 
-            if j > 0 :
-                err = norm(ref_frame[(i)*8 : (i +1 ) * 8 ,(j-1)*8 : (j ) * 8 ] -
-                next_frame[i*8 : (i +1) * 8 ,j*8 : (j +1) * 8 ]) # left block
-                if err < min_err :
+            if i < n - 1 and j < m - 1:
+                err = norm(
+                    ref_frame[(i + 1) * 8 : (i + 2) * 8, (j + 1) * 8 : (j + 2) * 8]
+                    - next_frame[i * 8 : (i + 1) * 8, j * 8 : (j + 1) * 8]
+                )  # down right block
+                if err < min_err:
                     min_err = err
-                    motion_mat[i,j] = (0 , -1)  # left
+                    motion_mat[i, j] = (1, 1)  # down right
 
-            if j < m -1 :
-                err = norm(ref_frame[(i)*8 : (i +1 ) * 8 ,(j+1)*8 : (j +2 ) * 8 ] -
-                next_frame[i*8 : (i +1) * 8 ,j*8 : (j +1) * 8 ]) # right block
-                if err < min_err :
+            if j > 0:
+                err = norm(
+                    ref_frame[(i) * 8 : (i + 1) * 8, (j - 1) * 8 : (j) * 8]
+                    - next_frame[i * 8 : (i + 1) * 8, j * 8 : (j + 1) * 8]
+                )  # left block
+                if err < min_err:
                     min_err = err
-                    motion_mat[i,j] = (0 , 1)  # right
+                    motion_mat[i, j] = (0, -1)  # left
+
+            if j < m - 1:
+                err = norm(
+                    ref_frame[(i) * 8 : (i + 1) * 8, (j + 1) * 8 : (j + 2) * 8]
+                    - next_frame[i * 8 : (i + 1) * 8, j * 8 : (j + 1) * 8]
+                )  # right block
+                if err < min_err:
+                    min_err = err
+                    motion_mat[i, j] = (0, 1)  # right
 
     return motion_mat
 
-def apply_motion(ref_frame , motion_mat) :
-    '''
-     Constructs a new frame using the refrence frame and the motion vectors matrix
-    '''
-    n,m = ref_frame.shape
-    n ,m=  int(n/8) ,int(m/8)
-    next_constructed = np.zeros(shape = (n *8 ,m *8) ,dtype= np.uint8)
-    for i in range(n) :
-        for j in range(m) :
-            ii = i + motion_mat[i,j][0]    # y axis
-            jj = j + motion_mat[i,j][1]    # x axis
-            next_constructed[i*8 : (i +1) * 8 ,j*8 : (j +1) * 8 ] = ref_frame[ii*8 : (ii +1) * 8 ,jj*8 : (jj +1) * 8 ]
+
+def apply_motion(ref_frame, motion_mat):
+    """
+    Constructs a new frame using the refrence frame and the motion vectors matrix
+    """
+    n, m = ref_frame.shape
+    n, m = int(n / 8), int(m / 8)
+    next_constructed = np.zeros(shape=(n * 8, m * 8), dtype=np.uint8)
+    for i in range(n):
+        for j in range(m):
+            ii = i + motion_mat[i, j][0]  # y axis
+            jj = j + motion_mat[i, j][1]  # x axis
+            next_constructed[i * 8 : (i + 1) * 8, j * 8 : (j + 1) * 8] = ref_frame[
+                ii * 8 : (ii + 1) * 8, jj * 8 : (jj + 1) * 8
+            ]
 
     return next_constructed
+
 
 """#### Video encoding function
 * Uses the CV2 video library to read /write video
@@ -751,118 +872,156 @@ def apply_motion(ref_frame , motion_mat) :
 * Refrence frame is encoded version of the previous current frame and is updated every frame
 """
 
-def encode_vid(video_path ,out_name,runtime_secs = 2 , rgb = True , encode_type ='huff'  , display_frames = True , q_factor = 50) :
+
+def encode_vid(
+    video_path,
+    out_name,
+    runtime_secs=2,
+    rgb=True,
+    encode_type="huff",
+    display_frames=True,
+    q_factor=50,
+):
 
     # Init video capture and write classes
     cv2.destroyAllWindows()
     vid_cap = cv2.VideoCapture(video_path)
-    fps    = vid_cap.get(cv2.CAP_PROP_FPS)
+    fps = vid_cap.get(cv2.CAP_PROP_FPS)
     length = int(vid_cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     # Read first frame
-    _,first_frame = vid_cap.read()
-    n,m ,_= first_frame.shape
-    n ,m=  int(n/8) ,int(m/8)
+    _, first_frame = vid_cap.read()
+    n, m, _ = first_frame.shape
+    n, m = int(n / 8), int(m / 8)
 
-    total_expected_length_bits = n*m*64 * runtime_secs*fps * 3 *8;
+    total_expected_length_bits = n * m * 64 * runtime_secs * fps * 3 * 8
 
     expected_coded_length = 0
 
     # Init the refrence frame by encoding and decoding the first frame
-    ref_frame = np.zeros(shape = (n*8,m*8 , 3) , dtype = np.uint8)
-    for i in range(3) :
-        encoded_stream ,n ,m, huff_table = encode_image(first_frame[:,:,i], q_factor= q_factor , encode_type = encode_type)
+    ref_frame = np.zeros(shape=(n * 8, m * 8, 3), dtype=np.uint8)
+    for i in range(3):
+        encoded_stream, n, m, huff_table = encode_image(
+            first_frame[:, :, i], q_factor=q_factor, encode_type=encode_type
+        )
         expected_coded_length += len(encoded_stream)
-        ref_frame[:,:,i]  = decode_image(encoded_stream ,n,m , huff_table , q_factor= q_factor , encode_type = encode_type)
+        ref_frame[:, :, i] = decode_image(
+            encoded_stream, n, m, huff_table, q_factor=q_factor, encode_type=encode_type
+        )
 
-
-    writer = cv2.VideoWriter(out_name,
-                            cv2.VideoWriter_fourcc(*'MJPG'),
-                            fps, ( m *8 , n *8 ) )
+    writer = cv2.VideoWriter(
+        out_name, cv2.VideoWriter_fourcc(*"MJPG"), fps, (m * 8, n * 8)
+    )
 
     # save first frame  to disk
     writer.write(ref_frame)
-    f0 = 0;    # frame counter
+    f0 = 0
+    # frame counter
 
-
-
-    while(vid_cap.isOpened() and f0 <= fps * runtime_secs):
+    while vid_cap.isOpened() and f0 <= fps * runtime_secs:
         # Capture frame-by-frame
-        print(f'Frame {f0} out of {int(fps * runtime_secs)}')
+        print(f"Frame {f0} out of {int(fps * runtime_secs)}")
         ret, frame = vid_cap.read()
-        if ret == True:     # If faliure return
-            frame = frame[0:n*8 , 0 :m*8 ,:]   # crop frame to multiples of 8
+        if ret == True:  # If faliure return
+            frame = frame[0 : n * 8, 0 : m * 8, :]  # crop frame to multiples of 8
             f0 += 1
-            constructed_frame = np.zeros(shape = (n*8,m*8 , 3) , dtype = np.uint8)   # Buffer matrix to store the constructed frame
-            motion_vects = get_motion_mat(ref_frame =ref_frame[:,:,0]  , next_frame = frame[:,:,0])   # get motion vectors with respect to channel 0
+            constructed_frame = np.zeros(
+                shape=(n * 8, m * 8, 3), dtype=np.uint8
+            )  # Buffer matrix to store the constructed frame
+            motion_vects = get_motion_mat(
+                ref_frame=ref_frame[:, :, 0], next_frame=frame[:, :, 0]
+            )  # get motion vectors with respect to channel 0
             code_len_buffer = np.zeros(3)
 
-
             # Encoding the motion vectors
-            motion_vects_flattened = motion_vects.flatten()   # covert to 1d
+            motion_vects_flattened = motion_vects.flatten()  # covert to 1d
 
             h_table = huffman_code(calculate_probs(motion_vects_flattened))
-            encoded_stream = huff_encode_stream(motion_vects_flattened ,h_table)  # encoding the motion vectors
+            encoded_stream = huff_encode_stream(
+                motion_vects_flattened, h_table
+            )  # encoding the motion vectors
 
-            expected_coded_length += len(encoded_stream)    # add the encoded motion vectors length
-            decoded_motion = huff_decode_stream(encoded_stream ,code_table=h_table)   # decode motion vectors
+            expected_coded_length += len(
+                encoded_stream
+            )  # add the encoded motion vectors length
+            decoded_motion = huff_decode_stream(
+                encoded_stream, code_table=h_table
+            )  # decode motion vectors
 
             # reshape to 2d
-            motion_vects = np.empty(dtype = object , shape = (n,m))
+            motion_vects = np.empty(dtype=object, shape=(n, m))
             idx = 0
-            for i in range(n) :
-                for j in range(m) :
-                    motion_vects[i,j] =   decoded_motion[idx]
-                    idx +=1
+            for i in range(n):
+                for j in range(m):
+                    motion_vects[i, j] = decoded_motion[idx]
+                    idx += 1
 
-            def encode_channel(i) :   # encode color channel
+            def encode_channel(i):  # encode color channel
                 # get moved predicted frame using the motion vectors and refrence frame
-                moved_frame =  apply_motion(motion_mat= motion_vects ,ref_frame= ref_frame[:,:,i])
+                moved_frame = apply_motion(
+                    motion_mat=motion_vects, ref_frame=ref_frame[:, :, i]
+                )
                 # Calculate residuals
-                resids = - moved_frame.astype(np.int32) + frame[:,:,i].astype(np.int32)
+                resids = -moved_frame.astype(np.int32) + frame[:, :, i].astype(np.int32)
 
                 # Encode residuals
-                encoded_stream ,n ,m, huff_table = encode_image(resids , q_factor= q_factor , encode_type = encode_type)
+                encoded_stream, n, m, huff_table = encode_image(
+                    resids, q_factor=q_factor, encode_type=encode_type
+                )
 
                 # Measure the coded stream length
                 code_len_buffer[i] = len(encoded_stream)
 
                 # Decode to get the residuals back
-                decoded_resids = decode_image(encoded_stream ,n,m , huff_table ,limited= False ,
-                                              q_factor= q_factor , encode_type = encode_type)
+                decoded_resids = decode_image(
+                    encoded_stream,
+                    n,
+                    m,
+                    huff_table,
+                    limited=False,
+                    q_factor=q_factor,
+                    encode_type=encode_type,
+                )
 
                 # construct current frame
-                constructed_frame[:,:,i] =(np.clip( moved_frame.astype(np.int32) +
-                    decoded_resids.astype(np.int32) ,0,255)).astype(np.uint8)
-
+                constructed_frame[:, :, i] = (
+                    np.clip(
+                        moved_frame.astype(np.int32) + decoded_resids.astype(np.int32),
+                        0,
+                        255,
+                    )
+                ).astype(np.uint8)
 
             # Each colr channel will be handeled by a thread
             t1 = threading.Thread(target=encode_channel, args=(0,))
             t2 = threading.Thread(target=encode_channel, args=(1,))
             t3 = threading.Thread(target=encode_channel, args=(2,))
 
-            t1.start();t2.start();t3.start()
+            t1.start()
+            t2.start()
+            t3.start()
 
-            t1.join();t2.join();t3.join()
+            t1.join()
+            t2.join()
+            t3.join()
 
-            #Update expected code Length ( sum of the length of each color channel stream)
+            # Update expected code Length ( sum of the length of each color channel stream)
             expected_coded_length += np.sum(code_len_buffer)
             # Update refrence frame
             ref_frame = constructed_frame
             # Save frame to disk
             writer.write(constructed_frame)
 
-            if display_frames :
-                if not COLAB :     # cv2.imshow doesnt run on google colab
-                    cv2.imshow('Frame', constructed_frame)
-                else :
-                    cv2_imshow( constructed_frame)
+            if display_frames:
+                if not COLAB:  # cv2.imshow doesnt run on google colab
+                    cv2.imshow("Frame", constructed_frame)
+                else:
+                    cv2_imshow(constructed_frame)
                 cv2.waitKey(20)
 
-    # Break the loop if frame read faliure
+        # Break the loop if frame read faliure
         else:
             break
-
 
     # Release resources
     vid_cap.release()
@@ -870,14 +1029,18 @@ def encode_vid(video_path ,out_name,runtime_secs = 2 , rgb = True , encode_type 
     cv2.destroyAllWindows()
 
     # Print results
-    print('Quantization table used :')
-    print(create_q_table( q_factor = q_factor))
-    print('Done')
-    print(f'Total expected Length {total_expected_length_bits} bit')
-    print(f'Expected encoded length {expected_coded_length} bit')
-    print(f'Compression ratio  {total_expected_length_bits/expected_coded_length :.2f} : 1')
+    print("Quantization table used :")
+    print(create_q_table(q_factor=q_factor))
+    print("Done")
+    print(f"Total expected Length {total_expected_length_bits} bit")
+    print(f"Expected encoded length {expected_coded_length} bit")
+    print(
+        f"Compression ratio  {total_expected_length_bits/expected_coded_length :.2f} : 1"
+    )
+
 
 """# encode video lossless"""
+
 
 def encode_vid_lossless(video_path, out_name, runtime_secs=2, display_frames=True):
     """Lossless video encoding using frame-by-frame compression"""
@@ -890,57 +1053,61 @@ def encode_vid_lossless(video_path, out_name, runtime_secs=2, display_frames=Tru
     # Read first frame
     _, first_frame = vid_cap.read()
     n, m, _ = first_frame.shape
-    n, m = int(n/8), int(m/8)
+    n, m = int(n / 8), int(m / 8)
 
     total_original_size = 0
     total_compressed_size = 0
 
     # Init the reference frame by encoding and decoding the first frame
-    ref_frame = np.zeros(shape=(n*8, m*8, 3), dtype=np.uint8)
+    ref_frame = np.zeros(shape=(n * 8, m * 8, 3), dtype=np.uint8)
     for i in range(3):
         # Calculate original size
-        total_original_size += first_frame[:,:,i].nbytes
+        total_original_size += first_frame[:, :, i].nbytes
 
         # Encode channel using lossless encoding
-        encoded_data = encode_image_lossless(Image.fromarray(first_frame[:,:,i]))
-        total_compressed_size += len(encoded_data['stream']) / 8
+        encoded_data = encode_image_lossless(Image.fromarray(first_frame[:, :, i]))
+        total_compressed_size += len(encoded_data["stream"]) / 8
 
         # Decode channel
-        ref_frame[:,:,i] = decode_image_lossless(encoded_data)
+        ref_frame[:, :, i] = decode_image_lossless(encoded_data)
 
-    writer = cv2.VideoWriter(out_name,
-                           cv2.VideoWriter_fourcc(*'MJPG'),
-                           fps, (m*8, n*8))
+    writer = cv2.VideoWriter(
+        out_name, cv2.VideoWriter_fourcc(*"MJPG"), fps, (m * 8, n * 8)
+    )
 
     # Save first frame to disk
     writer.write(ref_frame)
     f0 = 0  # frame counter
 
-    while(vid_cap.isOpened() and f0 <= fps * runtime_secs):
-        print(f'Frame {f0} out of {int(fps * runtime_secs)}')
+    while vid_cap.isOpened() and f0 <= fps * runtime_secs:
+        print(f"Frame {f0} out of {int(fps * runtime_secs)}")
         ret, frame = vid_cap.read()
 
         if ret == True:
-            frame = frame[0:n*8, 0:m*8, :]  # crop frame to multiples of 8
+            frame = frame[0 : n * 8, 0 : m * 8, :]  # crop frame to multiples of 8
             f0 += 1
-            constructed_frame = np.zeros(shape=(n*8, m*8, 3), dtype=np.uint8)
+            constructed_frame = np.zeros(shape=(n * 8, m * 8, 3), dtype=np.uint8)
 
             def encode_channel(i):
                 # Calculate original size
 
                 # Encode channel using lossless encoding
-                encoded_data = encode_image_lossless(Image.fromarray(frame[:,:,i]))
+                encoded_data = encode_image_lossless(Image.fromarray(frame[:, :, i]))
 
                 # Decode channel
-                constructed_frame[:,:,i] = decode_image_lossless(encoded_data)
+                constructed_frame[:, :, i] = decode_image_lossless(encoded_data)
 
             # Each color channel will be handled by a thread
             t1 = threading.Thread(target=encode_channel, args=(0,))
             t2 = threading.Thread(target=encode_channel, args=(1,))
             t3 = threading.Thread(target=encode_channel, args=(2,))
 
-            t1.start(); t2.start(); t3.start()
-            t1.join(); t2.join(); t3.join()
+            t1.start()
+            t2.start()
+            t3.start()
+            t1.join()
+            t2.join()
+            t3.join()
 
             # Update reference frame
             ref_frame = constructed_frame
@@ -949,7 +1116,7 @@ def encode_vid_lossless(video_path, out_name, runtime_secs=2, display_frames=Tru
 
             if display_frames:
                 if not COLAB:  # cv2.imshow doesn't run on google colab
-                    cv2.imshow('Frame', constructed_frame)
+                    cv2.imshow("Frame", constructed_frame)
                 else:
                     cv2_imshow(constructed_frame)
                 cv2.waitKey(20)
@@ -962,10 +1129,11 @@ def encode_vid_lossless(video_path, out_name, runtime_secs=2, display_frames=Tru
     cv2.destroyAllWindows()
 
     # Print results
-    print('Done')
-    print(f'Total original size: {total_original_size/1024/1024:.2f} MB')
-    print(f'Total compressed size: {total_compressed_size/1024/1024:.2f} MB')
-    print(f'Compression ratio: {total_original_size/total_compressed_size:.2f}:1')
+    print("Done")
+    print(f"Total original size: {total_original_size/1024/1024:.2f} MB")
+    print(f"Total compressed size: {total_compressed_size/1024/1024:.2f} MB")
+    print(f"Compression ratio: {total_original_size/total_compressed_size:.2f}:1")
+
 
 """#### Testing
 ##### Quantization table to be used :   
@@ -1018,9 +1186,10 @@ def encode_vid_lossless(video_path, out_name, runtime_secs=2, display_frames=Tru
 # Test image encoding decoding
 """
 
+
 def compare_compression_methods(image_path):
     # Load image
-    original_img = Image.open(image_path).convert('L')  # Convert to grayscale
+    original_img = Image.open(image_path).convert("L")  # Convert to grayscale
     original_array = np.array(original_img)
 
     # Calculate dimensions that are multiples of 8
@@ -1036,10 +1205,7 @@ def compare_compression_methods(image_path):
 
     # 1. Lossy Compression
     encoded_stream_lossy, n, m, encode_table = encode_image(
-        img=original_array,
-        q_type="luminance",
-        q_factor=50,
-        encode_type='huff'
+        img=original_array, q_type="luminance", q_factor=50, encode_type="huff"
     )
 
     decoded_img_lossy = decode_image(
@@ -1047,10 +1213,10 @@ def compare_compression_methods(image_path):
         n=n,
         m=m,
         encode_table=encode_table,
-        q_type='luminance',
+        q_type="luminance",
         q_factor=50,
-        encode_type='huff',
-        limited=True
+        encode_type="huff",
+        limited=True,
     )
 
     # 2. Lossless Compression
@@ -1060,14 +1226,14 @@ def compare_compression_methods(image_path):
     # Calculate compression ratios
     original_size = original_array.nbytes
     lossy_size = len(encoded_stream_lossy) / 8
-    lossless_size = len(encoded_data['stream']) / 8
+    lossless_size = len(encoded_data["stream"]) / 8
 
     lossy_ratio = original_size / lossy_size
     lossless_ratio = original_size / lossless_size
 
     # Calculate PSNR for lossy compression
     mse = np.mean((original_array - decoded_img_lossy) ** 2)
-    psnr = 20 * np.log10(255 / np.sqrt(mse)) if mse > 0 else float('inf')
+    psnr = 20 * np.log10(255 / np.sqrt(mse)) if mse > 0 else float("inf")
 
     # Verify lossless compression
     is_lossless = np.array_equal(original_array, decoded_img_lossless)
@@ -1076,21 +1242,25 @@ def compare_compression_methods(image_path):
     plt.figure(figsize=(15, 5))
 
     plt.subplot(1, 3, 1)
-    plt.title(f'Original Image\n{original_array.shape}')
-    plt.imshow(original_array, cmap='gray')
-    plt.axis('off')
+    plt.title(f"Original Image\n{original_array.shape}")
+    plt.imshow(original_array, cmap="gray")
+    plt.axis("off")
 
     plt.subplot(1, 3, 2)
-    plt.title(f'Lossy Compression\nRatio: {lossy_ratio:.2f}:1\nPSNR: {psnr:.2f}dB')
-    plt.imshow(decoded_img_lossy, cmap='gray')
-    plt.axis('off')
+    plt.title(f"Lossy Compression\nRatio: {lossy_ratio:.2f}:1\nPSNR: {psnr:.2f}dB")
+    plt.imshow(decoded_img_lossy, cmap="gray")
+    plt.axis("off")
 
     plt.subplot(1, 3, 3)
-    plt.title(f'Lossless Compression\nRatio: {lossless_ratio:.2f}:1\nPerfect: {is_lossless}')
-    plt.imshow(decoded_img_lossless, cmap='gray')
-    plt.axis('off')
+    plt.title(
+        f"Lossless Compression\nRatio: {lossless_ratio:.2f}:1\nPerfect: {is_lossless}"
+    )
+    plt.imshow(decoded_img_lossless, cmap="gray")
+    plt.axis("off")
 
     plt.tight_layout()
+    # Save the figure before showing it
+    plt.savefig("compression_comparison.png", dpi=300, bbox_inches="tight")
     plt.show()
 
     # Print detailed results
@@ -1099,7 +1269,10 @@ def compare_compression_methods(image_path):
     print(f"Lossless compression ratio: {lossless_ratio:.2f}:1")
     print(f"Lossless verification: {is_lossless}")
 
-compare_compression_methods("./multimediaProject/imageTest.jpg")
+
+# compare_compression_methods("./multimediaProject/imageTest.jpg")
+from PIL import Image, ImageDraw, ImageFont
+
 
 def compare_compression_methods_rgb(image_path):
     # Load image (keeping RGB channels)
@@ -1125,38 +1298,43 @@ def compare_compression_methods_rgb(image_path):
     for channel in range(3):
         # 1. Lossy Compression for current channel
         encoded_stream_lossy, n, m, encode_table = encode_image(
-            img=original_array[:,:,channel],
+            img=original_array[:, :, channel],
             q_type="luminance",
             q_factor=50,
-            encode_type='huff'
+            encode_type="huff",
         )
 
-        decoded_img_lossy[:,:,channel] = decode_image(
+        decoded_img_lossy[:, :, channel] = decode_image(
             encoded_stream=encoded_stream_lossy,
             n=n,
             m=m,
             encode_table=encode_table,
-            q_type='luminance',
+            q_type="luminance",
             q_factor=50,
-            encode_type='huff',
-            limited=True
+            encode_type="huff",
+            limited=True,
         )
 
         # 2. Lossless Compression for current channel
-        encoded_data = encode_image_lossless(original_array[:,:,channel])
-        decoded_img_lossless[:,:,channel] = decode_image_lossless(encoded_data)
+        encoded_data = encode_image_lossless(original_array[:, :, channel])
+        decoded_img_lossless[:, :, channel] = decode_image_lossless(encoded_data)
 
     # Calculate compression ratios
     original_size = original_array.nbytes
-    lossy_size = sum(len(encode_image(original_array[:,:,c], q_factor=50)[0]) / 8 for c in range(3))
-    lossless_size = sum(len(encode_image_lossless(original_array[:,:,c])['stream']) / 8 for c in range(3))
+    lossy_size = sum(
+        len(encode_image(original_array[:, :, c], q_factor=50)[0]) / 8 for c in range(3)
+    )
+    lossless_size = sum(
+        len(encode_image_lossless(original_array[:, :, c])["stream"]) / 8
+        for c in range(3)
+    )
 
     lossy_ratio = original_size / lossy_size
     lossless_ratio = original_size / lossless_size
 
     # Calculate PSNR for lossy compression (average of all channels)
     mse = np.mean((original_array - decoded_img_lossy) ** 2)
-    psnr = 20 * np.log10(255 / np.sqrt(mse)) if mse > 0 else float('inf')
+    psnr = 20 * np.log10(255 / np.sqrt(mse)) if mse > 0 else float("inf")
 
     # Verify lossless compression
     is_lossless = np.array_equal(original_array, decoded_img_lossless)
@@ -1165,21 +1343,23 @@ def compare_compression_methods_rgb(image_path):
     plt.figure(figsize=(15, 5))
 
     plt.subplot(1, 3, 1)
-    plt.title(f'Original Image\n{original_array.shape}')
+    plt.title(f"Original Image\n{original_array.shape}")
     plt.imshow(original_array)
-    plt.axis('off')
+    plt.axis("off")
 
     plt.subplot(1, 3, 2)
-    plt.title(f'Lossy Compression\nRatio: {lossy_ratio:.2f}:1\nPSNR: {psnr:.2f}dB')
+    plt.title(f"Lossy Compression\nRatio: {lossy_ratio:.2f}:1\nPSNR: {psnr:.2f}dB")
     plt.imshow(decoded_img_lossy)
-    plt.axis('off')
+    plt.axis("off")
 
     plt.subplot(1, 3, 3)
-    plt.title(f'Lossless Compression\nRatio: {lossless_ratio:.2f}:1\nPerfect: {is_lossless}')
+    plt.title(
+        f"Lossless Compression\nRatio: {lossless_ratio:.2f}:1\nPerfect: {is_lossless}"
+    )
     plt.imshow(decoded_img_lossless)
-    plt.axis('off')
-
+    plt.axis("off")
     plt.tight_layout()
+    plt.savefig("compression_comparison.png", dpi=300, bbox_inches="tight")
     plt.show()
 
     # Print detailed results
@@ -1187,11 +1367,60 @@ def compare_compression_methods_rgb(image_path):
     print(f"Lossy compression ratio: {lossy_ratio:.2f}:1 (PSNR: {psnr:.2f}dB)")
     print(f"Lossless compression ratio: {lossless_ratio:.2f}:1")
     print(f"Lossless verification: {is_lossless}")
-compare_compression_methods_rgb("./multimediaProject/imageTest.jpg")
+    # Create a new combined image for side-by-side comparison
+    # combined_width = new_width * 3  # 3 images side by side
+    # combined_height = new_height
+    # combined_image = Image.new('RGB', (combined_width, combined_height))
 
-"""# video test"""
+    # # Convert numpy arrays to PIL Images
+    # original_pil = Image.fromarray(original_array)
+    # lossy_pil = Image.fromarray(decoded_img_lossy)
+    # lossless_pil = Image.fromarray(decoded_img_lossless)
 
-encode_vid_lossless("./multimediaProject/vidTest.mp4", "./losslessVid.avi", runtime_secs=5, display_frames=False)
+    # # Paste images side by side
+    # combined_image.paste(original_pil, (0, 0))
+    # combined_image.paste(lossy_pil, (new_width, 0))
+    # combined_image.paste(lossless_pil, (new_width * 2, 0))
 
-video_path = './multimediaProject/vidTest'
-encode_vid(video_path ,'res.avi', 5 , encode_type ='huff')
+    # # Add text annotations
+    # draw = ImageDraw.Draw(combined_image)
+    # try:
+    #     font = ImageFont.truetype("arial.ttf", 36)  # You may need to adjust font path and size
+    # except:
+    #     font = ImageFont.load_default()
+
+    # # Calculate compression metrics
+    # original_size = original_array.nbytes
+    # lossy_size = sum(len(encode_image(original_array[:,:,c], q_factor=50)[0]) / 8 for c in range(3))
+    # lossless_size = sum(len(encode_image_lossless(original_array[:,:,c])['stream']) / 8 for c in range(3))
+
+    # lossy_ratio = original_size / lossy_size
+    # lossless_ratio = original_size / lossless_size
+
+    # mse = np.mean((original_array - decoded_img_lossy) ** 2)
+    # psnr = 20 * np.log10(255 / np.sqrt(mse)) if mse > 0 else float('inf')
+    # is_lossless = np.array_equal(original_array, decoded_img_lossless)
+
+    # # Add text annotations
+    # draw.text((10, 10), f'Original\n{original_array.shape}', fill='white', font=font)
+    # draw.text((new_width + 10, 10), f'Lossy\nRatio: {lossy_ratio:.2f}:1\nPSNR: {psnr:.2f}dB', fill='white', font=font)
+    # draw.text((new_width * 2 + 10, 10), f'Lossless\nRatio: {lossless_ratio:.2f}:1\nPerfect: {is_lossless}', fill='white', font=font)
+
+    # # Save the combined image
+    # combined_image.save('compression_comparison.png')
+
+    # # Print detailed results
+    # print(f"\nOriginal size: {original_size} bytes")
+    # print(f"Lossy compression ratio: {lossy_ratio:.2f}:1 (PSNR: {psnr:.2f}dB)")
+    # print(f"Lossless compression ratio: {lossless_ratio:.2f}:1")
+    # print(f"Lossless verification: {is_lossless}")
+
+
+compare_compression_methods_rgb("./imageTest.jpg")
+
+# """# video test"""
+
+# encode_vid_lossless("./vidTest.mp4", "./losslessVid.avi", runtime_secs=5, display_frames=False)
+
+# video_path = './vidTest'
+# encode_vid(video_path ,'res.avi', 5 , encode_type ='huff')
