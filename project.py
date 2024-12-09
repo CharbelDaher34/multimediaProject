@@ -1359,7 +1359,7 @@ def compare_compression_methods_rgb(image_path):
     plt.imshow(decoded_img_lossless)
     plt.axis("off")
     plt.tight_layout()
-    plt.savefig("compression_comparison.png", dpi=300, bbox_inches="tight")
+    plt.savefig("compression_comparison.png", dpi=1200, bbox_inches="tight")
     plt.show()
 
     # Print detailed results
@@ -1416,11 +1416,11 @@ def compare_compression_methods_rgb(image_path):
     # print(f"Lossless verification: {is_lossless}")
 
 
-compare_compression_methods_rgb("./imageTest.jpg")
+# compare_compression_methods_rgb("./imageTest.jpg")
 
 # """# video test"""
 
 # encode_vid_lossless("./vidTest.mp4", "./losslessVid.avi", runtime_secs=5, display_frames=False)
 
-# video_path = './vidTest'
-# encode_vid(video_path ,'res.avi', 5 , encode_type ='huff')
+video_path = "./vidTest.mp4"
+encode_vid(video_path, "lossyVid.avi", 5, encode_type="huff")

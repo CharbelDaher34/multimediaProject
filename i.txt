@@ -1,0 +1,10 @@
+losslessVid.avi: 
+Total original size: 5.93 MB
+Total compressed size: 3.15 MB
+Compression ratio: 1.88:1
+
+
+lossy:
+Total expected Length 7464960000.0 bit
+Expected encoded length 452851320.0 bit
+Compression ratio  16.48 : 1
